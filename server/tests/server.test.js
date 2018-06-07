@@ -7,7 +7,7 @@ const {ObjectID} = require('mongodb');
 
 const testTodos = [
     {_id: new ObjectID(), text: 'First test todo'},
-    {_id: new ObjectID(), text: 'Second test todo'}
+    {_id: new ObjectID(), text: 'Second test todo', completed:true,completedAt: new Date()}
 ];
 
 beforeEach( (done) => {
@@ -94,6 +94,46 @@ describe ('Todos Routes:', () =>
             request(app)
                 .get('/todos/123')
                 .expect(404)
+                .end(done);
+        });
+    });
+
+    describe('PATCH', (done) => {
+        it('should update the todo', (done) => {
+            var id = testTodos[0]._id.toHexString();
+            var newData = {
+                text: 'Updated first todo',
+                completed: true
+            }
+
+            request(app)
+                .patch(`/todos/${id}`)
+                .send(newData)
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.body.todo.text).toBe(newData.text);
+                    expect(res.body.todo.completed).toBe(true);
+                    expect(res.body.todo.completed).not.toBe(null);
+                })
+                .end(done);
+        });
+
+        it('should clear completedAt when todo is nor completed', (done) => {
+            var id = testTodos[1]._id.toHexString();
+            var newData = {
+                text: 'Updated second todo',
+                completed: false
+            }
+
+            request(app)
+                .patch(`/todos/${id}`)
+                .send(newData)
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.body.todo.text).toBe(newData.text);
+                    expect(res.body.todo.completed).toBe(false);
+                    expect(res.body.todo.completedAt).toBe(null);
+                })
                 .end(done);
         });
     });
