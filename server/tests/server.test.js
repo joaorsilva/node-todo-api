@@ -98,4 +98,41 @@ describe ('Todos Routes:', () =>
         });
     });
 
+    describe('DELETE', (done) => {
+        it('should delete a todo', (done) => {
+            request(app)
+                .delete(`/todos/${testTodos[0]._id.toHexString()}`)
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.body.todo._id).toBe(testTodos[0]._id.toHexString());
+                })
+                .end( (err, res) => {
+                    if(err) {
+                        return done(err);
+                    }
+                    Todo.findById(testTodos[0]._id).then((todo) => {
+                        expect(todo).toBe(null);
+                        done();
+                    }).catch( (e) => {
+                        done(e);
+                    });
+                });                
+        });
+
+        it('should return 404 for todo id not found', (done) => {
+            var id = new ObjectID();
+            request(app)
+                .delete(`/todos/${id}`)
+                .expect(404)
+                .end(done);
+        });
+
+        it('should return 404 for not valid object ids', (done) => {
+            request(app)
+                .delete('/todos/123')
+                .expect(404)
+                .end(done);
+        });
+    });
+
 });
