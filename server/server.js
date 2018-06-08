@@ -13,6 +13,7 @@ var {authenticate} = require('./middleware/authenticate');
 var app = express();
 const port = process.env.PORT;
 
+
 app.use(bodyParser.json());
 
 app.post('/todos', (req,res) => {
@@ -121,6 +122,22 @@ app.post('/users', (req, res) => {
 
 app.get('/users/me', authenticate ,(req,res) => {
     res.send(req.user);
+});
+
+app.post('/users/login', (req,res) => {
+    var body = _.pick(req.body,['email','password']);
+    User.findByCredentials(body.email, body.password).then( (user) => {
+        user.generateAuthToken().then((token) => {
+            res.set('x-auth',token).send(user);
+        });
+    }).catch( (e) => {
+        if(e === "User not found")
+        {
+            return res.status(404).send();
+        }
+        res.status(400).send();
+    });
+    
 });
 
 app.listen(3000, () => {
