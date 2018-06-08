@@ -4,21 +4,20 @@ const request = require('supertest');
 const {app} = require('./../server');
 const {Todo} = require('./../models/todo');
 const {ObjectID} = require('mongodb');
+const {User} = require('./../models/user');
+const {
+    testTodos, 
+    populateTodos, 
+    testUsers, 
+    populateUsers
+} = require('./seed/seed');
 
-const testTodos = [
-    {_id: new ObjectID(), text: 'First test todo'},
-    {_id: new ObjectID(), text: 'Second test todo', completed:true,completedAt: new Date()}
-];
-
-beforeEach( (done) => {
-    Todo.remove({}).then( () => {
-        return Todo.insertMany(testTodos);
-    }).then( () => done());
-});
+beforeEach( populateUsers );
+beforeEach( populateTodos );
 
 describe ('Todos Routes:', () => 
 {
-    describe('POST', () => {
+    describe('POST /todos', () => {
         it('should create a new todo', (done) => {
             var text = 'Test todo text';
 
@@ -61,7 +60,7 @@ describe ('Todos Routes:', () =>
         });
     });
 
-    describe('GET', (done) => {
+    describe('GET /todos', (done) => {
         it('should get all todos', (done) => {
             request(app)
                 .get('/todos')
@@ -98,7 +97,7 @@ describe ('Todos Routes:', () =>
         });
     });
 
-    describe('PATCH', (done) => {
+    describe('PATCH /todos', (done) => {
         it('should update the todo', (done) => {
             var id = testTodos[0]._id.toHexString();
             var newData = {
@@ -138,7 +137,7 @@ describe ('Todos Routes:', () =>
         });
     });
 
-    describe('DELETE', (done) => {
+    describe('DELETE /todos', (done) => {
         it('should delete a todo', (done) => {
             request(app)
                 .delete(`/todos/${testTodos[0]._id.toHexString()}`)
@@ -174,5 +173,79 @@ describe ('Todos Routes:', () =>
                 .end(done);
         });
     });
+});
 
+
+describe('Users Routes', () => {
+    describe('GET /users/me', () => {
+        it('should return user if authenticated', (done) => {
+            request(app)
+                .get('/users/me')
+                .set('x-auth', testUsers[0].tokens[0].token)
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.body._id).toBe(testUsers[0]._id.toHexString())
+                    expect(res.body.email).toBe(testUsers[0].email)
+                })
+                .end(done);
+        });
+
+        it('should return 401 if not authenticated', (done) => {
+            request(app)
+                .get('/users/me')
+                .set('x-auth', null)
+                .expect(401)
+                .expect( (res) => {
+                    expect(res.body).toEqual({});
+                })
+                .end(done)
+        });
+    });
+
+    describe('POST /users', () => {
+        it('should create a user', (done) => {
+            var email = 'example@example.com';
+            var password = '123abc!';
+
+            request(app)
+                .post('/users')
+                .send({email,password})
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.headers['x-auth']).toBeTruthy();
+                    expect(res.body._id).toBeTruthy();
+                    expect(res.body.email).toBe(email);
+                })
+                .end((err) => {
+                    if(err) {
+                        return done(err);
+                    }
+
+                    User.findOne({email}).then( (user) => {
+                        expect(user).not.toBe(null);
+                        expect(user.password).not.toBe(password);
+                        done();
+                    });
+                });
+        });
+
+        it('should validation errors if request is invalid', (done) => {
+            var email = 'example';
+            var password = '1';
+
+            request(app)
+                .post('/users')
+                .send({email,password})
+                .expect(400)
+                .end(done);            
+        });
+
+        it('should not create a user if the email is in use', (done) => {
+            request(app)
+                .post('/users')
+                .send({email: testUsers[0].email,password: '12345678'})
+                .expect(400)
+                .end(done);            
+        });
+    });
 });
