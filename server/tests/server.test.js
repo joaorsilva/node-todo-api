@@ -202,6 +202,40 @@ describe('Users Routes', () => {
         });
     });
 
+    describe('POST /users/login', () => {
+        it('should login user and return token', (done) => {
+            request(app)
+                .post('/users/login')
+                .send({email: testUsers[1].email, password: testUsers[1].password})
+                .expect(200)
+                .expect( (res) => {
+                    expect(res.headers['x-auth']).toBeTruthy();
+                })
+                .end((err, res) => {
+                    if(err) {
+                        return done(err);
+                    }
+
+                    User.findById(testUsers[1]._id).then((user => {
+                        expect(user.tokens[0].access).toBe('auth');
+                        expect(user.tokens[0].token).toBe(res.headers['x-auth']);
+                        done();
+                    })).catch((e) => done(e));
+                });
+        });
+
+        it('should reject invalid login', (done) => {
+            request(app)
+            .post('/users/login')
+            .send({email: 'asdf', password: testUsers[0].password})
+            .expect(400)
+            .expect( (res) => {
+                expect(res.body).toEqual({});
+            })
+            .end(done)            
+        });
+    });
+
     describe('POST /users', () => {
         it('should create a user', (done) => {
             var email = 'example@example.com';
@@ -225,7 +259,7 @@ describe('Users Routes', () => {
                         expect(user).not.toBe(null);
                         expect(user.password).not.toBe(password);
                         done();
-                    });
+                    }).catch((e) => done(e));
                 });
         });
 
